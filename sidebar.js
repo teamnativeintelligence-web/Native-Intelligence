@@ -472,7 +472,9 @@ function deliverUserVerdict(pct, ratings, summary) {
   }
 }
 
-// ── SOURCE DETECTION ──────────────────────────────────────────────────────────
+
+
+// ── SOURCE DETECTION ─────────────────────────────────────────────────────────
 document.getElementById('source-btn').addEventListener('click', runSource);
 
 async function runSource() {
@@ -487,39 +489,41 @@ async function runSource() {
   </div>`;
   document.getElementById('source-btn').disabled = true;
   if (window.setMascotPose) setMascotPose('working', false);
-  await new Promise(r => setTimeout(r, 600));
 
   try {
     const raw = await callGroq(
-      `You are a source detection expert. A user has pasted this text and wants to find the REAL original source with an actual working URL.
+      `You are a source detection expert. Identify the most likely original source of this text. Be specific — name actual publications, websites, or authors where possible.
 
 Text: "${text}"
-
-Step 1: Identify the most likely source based on writing style, topic, phrasing, and any distinctive details.
-Step 2: Construct the most likely real URL to that source (e.g. a specific article URL, DOI, or webpage).
-Step 3: If you cannot find an exact URL, provide the best search query a user could use to find it on Google.
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
   "sources": [
     {
-      "title": "<exact article/page title if known, or best guess>",
-      "type": "<Article | Paper | Website | Book | Social Media | News | Blog | Unknown>",
-      "url": "<the most likely real direct URL — e.g. https://www.bbc.com/news/... or https://doi.org/... — not just a homepage>",
-      "search_query": "<exact Google search query to find this if URL is uncertain>",
+      "title": "<specific source title or publication>",
+      "type": "<Article | Paper | Website | Book | Social Media | Unknown>",
+      "url": "<most likely direct URL to this specific source>",
       "confidence": "<High | Medium | Low>",
-      "reasoning": "<1-2 sentences: what specific clues in the text point to this source>"
+      "reasoning": "<1-2 sentences with specific evidence>"
     }
   ],
-  "summary": "<1-2 sentence overall assessment of where this text came from>"
+  "summary": "<1-2 sentence overall assessment>"
 }
-Return 1-3 sources. Prioritise specificity — a real article URL beats a homepage. If truly unknown, say so honestly with Low confidence.`,
-      `You are a world-class investigative researcher and source attribution expert. You have deep knowledge of major publications, academic journals, news outlets, blogs, and websites worldwide. You specialise in finding the exact origin of text passages. You always try to provide the most specific, direct URL possible — not just a domain. You are honest about uncertainty but always try to give the user something actionable.`
+Return 1-3 sources maximum.`,
+      `You are a world-class source detection expert with deep knowledge of major publications, academic journals, news outlets, and websites. You give specific, confident source attributions and always try to provide a direct URL.`
     );
 
     let result;
-    try { result = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
-    catch { result = { sources: [{ title: 'Could not identify source', type: 'Unknown', url: '', search_query: text.slice(0, 80), confidence: 'Low', reasoning: 'Could not parse AI response.' }], summary: '' }; }
+    try {
+      const clean = raw.replace(/```json|```/gi, '').trim();
+      result = JSON.parse(clean);
+    } catch {
+      const match = raw.match(/\{[\s\S]*\}/);
+      try { result = match ? JSON.parse(match[0]) : null; } catch { result = null; }
+    }
+    if (!result || !result.sources) {
+      result = { sources: [{ title: 'Could not identify source', type: 'Unknown', url: '', confidence: 'Low', reasoning: 'Could not parse AI response.' }], summary: '' };
+    }
 
     const confMap = { 'High': 'conf-high', 'Medium': 'conf-med', 'Low': 'conf-low' };
     let html = result.sources.map(s => `
@@ -529,13 +533,7 @@ Return 1-3 sources. Prioritise specificity — a real article URL beats a homepa
         <span style="font-size:10px;color:var(--text-muted);margin-left:6px">${s.type}</span>
         ${s.url ? `<div class="source-url" style="margin-top:6px">
           <a href="${s.url}" target="_blank" style="color:var(--accent);font-size:12px;word-break:break-all;text-decoration:none">
-            🔗 ${s.url}
-          </a>
-        </div>` : ''}
-        ${s.search_query ? `<div style="margin-top:6px">
-          <a href="https://www.google.com/search?q=${encodeURIComponent(s.search_query)}" target="_blank"
-             style="font-size:11px;color:var(--text-muted);text-decoration:none;display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);padding:3px 8px;border-radius:99px;background:var(--surface-2)">
-            🔎 Search Google for this
+            ${s.url}
           </a>
         </div>` : ''}
         <div style="font-size:12px;color:var(--text-secondary);margin-top:6px">${s.reasoning}</div>
@@ -546,18 +544,20 @@ Return 1-3 sources. Prioritise specificity — a real article URL beats a homepa
         <strong>Assessment:</strong> ${result.summary}
       </div>`;
     }
-    html += `<div style="margin-top:10px"><button class="copy-btn" id="copy-source">📋 Copy result</button></div>`;
-    if (window.setMascotPose) setMascotPose('done', true);
+    html += `<div style="margin-top:8px"><button class="copy-btn" id="copy-source">📋 Copy result</button></div>`;
+
     document.getElementById('source-list').innerHTML = html;
+    if (window.setMascotPose) setMascotPose('done', true);
 
     document.getElementById('copy-source').addEventListener('click', () => {
-      const out = `Native Intelligence — Source Detection\n${'─'.repeat(30)}\n${result.sources.map(s=>`• ${s.title} (${s.confidence})\n  ${s.url || s.search_query}\n  ${s.reasoning}`).join('\n\n')}${result.summary ? '\n\nAssessment: '+result.summary : ''}`;
-      navigator.clipboard.writeText(out);
-      document.getElementById('copy-source').textContent = '✓ Copied!';
+      const srcLines = result.sources.map(s => s.title + ' (' + s.confidence + ')' + (s.url ? ' - ' + s.url : '') + ' - ' + s.reasoning);
+      const copyOut = 'Native Intelligence - Source Detection\n' + srcLines.join('\n') + (result.summary ? '\n' + result.summary : '');
+      navigator.clipboard.writeText(copyOut);
+      document.getElementById('copy-source').textContent = 'Copied!';
       setTimeout(() => { document.getElementById('copy-source').innerHTML = '📋 Copy result'; }, 2000);
     });
 
-    const snippet = text.length > 80 ? text.slice(0, 80) + '…' : text;
+    const snippet = text.length > 80 ? text.slice(0, 80) + '...' : text;
     saveHistory({ type: 'source', text: snippet, pct: null, date: formatDate() });
 
   } catch (err) {
@@ -567,7 +567,6 @@ Return 1-3 sources. Prioritise specificity — a real article URL beats a homepa
   }
   document.getElementById('source-btn').disabled = false;
 }
-
 
 
 // ── History ───────────────────────────────────────────────────────────────────

@@ -844,3 +844,26 @@ textarea.ni-input::placeholder { color: var(--text-muted); }
   margin-bottom: 6px;
   letter-spacing: 0.02em;
 }
+
+/* ── Source search buttons ── */
+.source-search-btn {
+  display: block;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  font: 600 12px 'DM Sans', sans-serif;
+  text-decoration: none;
+  text-align: center;
+  transition: all var(--transition);
+}
+.source-search-primary {
+  background: var(--accent);
+  color: white;
+  border: 1.5px solid var(--accent);
+}
+.source-search-primary:hover { opacity: 0.85; }
+.source-search-secondary {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+}
+.source-search-secondary:hover { border-color: var(--accent); color: var(--accent); }
