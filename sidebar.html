@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Native Intelligence</title>
+  <link rel="stylesheet" href="shared.css"/>
+  <style>
+    body { width: 100%; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    .sidebar-header { padding: 0 18px 0; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      justify-content: center;
+      padding-top: 10px;
+    }
+    .ni-logo-mark {
+      width: 26px; height: 26px; background: var(--accent); border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent-text); font-size: 12px; font-weight: 700;
+      font-family: 'DM Serif Display', serif; transition: background 0.2s;
+    }
+    .ni-logo-text { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px; letter-spacing: -0.01em; color: var(--text-primary); }
+    .ni-tagline { margin-left: auto; font-size: 10px; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .sidebar-body { flex: 1; overflow-y: auto; padding: var(--spacing) 18px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .input-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: var(--spacing); }
+    .input-row textarea { flex: 1; min-height: 90px; }
+    .debate-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .debate-header .section-label { margin-bottom: 0; }
+    .source-input-row { margin-bottom: var(--spacing); }
+    .source-input-row textarea { min-height: 90px; margin-bottom: 8px; }
+    .history-filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+    .filter-chip {
+      padding: 4px 10px; border: 1px solid var(--border); border-radius: 99px;
+      font-size: calc(var(--font-size-base) - 2px); font-weight: 500; color: var(--text-secondary);
+      background: var(--surface); cursor: pointer; transition: all var(--transition);
+    }
+    .filter-chip.active, .filter-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+    .setup-box {
+      background: #f0fdf4; border: 1.5px solid #86efac;
+      border-radius: var(--radius-lg); padding: var(--spacing); margin-bottom: 14px;
+    }
+    [data-theme="dark"] .setup-box { background: #052e16; border-color: #166534; }
+    .setup-box h3 { font-size: var(--font-size-base); font-weight: 600; color: #166534; margin-bottom: 6px; }
+    .setup-box p  { font-size: calc(var(--font-size-base) - 2px); color: #15803d; line-height: 1.6; margin-bottom: 12px; }
+    [data-theme="dark"] .setup-box h3 { color: #4ade80; }
+    [data-theme="dark"] .setup-box p  { color: #86efac; }
+    .setup-steps { font-size: calc(var(--font-size-base) - 2px); color: #166534; line-height: 2.2; padding-left: 16px; margin-bottom: 12px; }
+    [data-theme="dark"] .setup-steps { color: #4ade80; }
+
+    /* Indigenous check tab */
+    .indigenous-intro {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      margin-bottom: 14px;
+      font-size: calc(var(--font-size-base) - 1px);
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .indigenous-intro strong { color: var(--text-primary); }
+
+    .stereotype-meter {
+      margin-top: 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .stereotype-meter-header {
+      padding: 10px 14px;
+      font-weight: 600;
+      font-size: calc(var(--font-size-base) - 1px);
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .stereotype-score {
+      font-family: 'DM Serif Display', serif;
+      font-size: calc(var(--font-size-base) + 8px);
+    }
+    .score-safe      { color: var(--human-color); }
+    .score-caution   { color: var(--neutral-color); }
+    .score-harmful   { color: var(--ai-color); }
+
+    .stereotype-flags {
+      padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .flag-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      font-size: calc(var(--font-size-base) - 1px);
+      line-height: 1.5;
+    }
+    .flag-item.flag-harmful  { background: #fdecea; color: #7f1d1d; }
+    .flag-item.flag-caution  { background: #fdf3e3; color: #78350f; }
+    .flag-item.flag-positive { background: #e8f4ee; color: #14532d; }
+    [data-theme="dark"] .flag-item.flag-harmful  { background: #2a0a08; color: #fca5a5; }
+    [data-theme="dark"] .flag-item.flag-caution  { background: #2a1500; color: #fcd34d; }
+    [data-theme="dark"] .flag-item.flag-positive { background: #052e16; color: #86efac; }
+    .flag-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .flag-text { flex: 1; }
+    .flag-label { font-weight: 600; margin-bottom: 2px; }
+
+    .source-links {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .source-link-item {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-2);
+      text-decoration: none;
+      transition: border-color var(--transition);
+    }
+    .source-link-item:hover { border-color: var(--accent); }
+    .source-link-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .source-link-info { flex: 1; min-width: 0; }
+    .source-link-title {
+      font-size: calc(var(--font-size-base) - 1px);
+      font-weight: 500; color: var(--accent);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .source-link-desc {
+      font-size: calc(var(--font-size-base) - 3px);
+      color: var(--text-muted); margin-top: 1px;
+    }
+    .source-link-url {
+      font-size: calc(var(--font-size-base) - 4px);
+      color: var(--text-muted); margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar-header">
+    <div class="beta-banner">⚠️ Beta — some features may be limited</div>
+    <div class="header-top">
+      <img src="mascot/logo_transparent.png" class="ni-logo-img" alt="Native Intelligence"/>
+      <span class="ni-logo-text">Native Intelligence</span>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="verify">🔍 Verify</button>
+      <button class="tab-btn" data-tab="source">📎 Source</button>
+      
+      <button class="tab-btn" data-tab="knowledge">🪶 Indigenous Library</button>
+      <button class="tab-btn" data-tab="history">🕐 History</button>
+      <button class="tab-btn" data-tab="appearance">🎨 Look</button>
+      <button class="tab-btn" data-tab="settings">⚙️ Setup</button>
+    </div>
+  </div>
+
+  <div class="sidebar-body">
+
+    <!-- VERIFY -->
+    <div class="tab-panel active" id="tab-verify">
+      <div id="verify-key-warning"></div>
+      <p class="ai-disclaimer">⚠️ AI can make mistakes. Please double-check responses.</p>
+      <div class="input-row">
+        <textarea class="ni-input" id="verify-input" placeholder="Paste text to check if it's AI-generated…"></textarea>
+        <button class="btn" id="verify-btn">Analyse</button>
+      </div>
+      <div id="length-warning" style="display:none"></div>
+      <div id="request-counter" class="request-counter"></div>
+      <div id="verify-results" style="display:none">
+        <div class="debate-header">
+          <span class="section-label">AI Debate</span>
+          <span class="debate-badge" id="debate-status">Waiting…</span>
+        </div>
+        <div class="debate-container" id="debate-log"></div>
+        <div id="verdict-area"></div>
+      </div>
+      <div id="verify-empty" class="empty-state">
+        
+        Two AI analysts will debate the text's authenticity — then you deliver the verdict.
+      </div>
+    </div>
+
+    <!-- SOURCE -->
+    <div class="tab-panel" id="tab-source">
+      <p class="ai-disclaimer">⚠️ AI can make mistakes. Please double-check responses.</p>
+      <div class="source-input-row">
+        <textarea class="ni-input" id="source-input" placeholder="Paste text to find its original source…"></textarea>
+        <button class="btn" id="source-btn" style="width:100%">Find Source</button>
+      </div>
+      <div id="source-results" style="display:none">
+        <div class="section-label" style="margin-bottom:10px">Possible Sources</div>
+        <div id="source-list"></div>
+      </div>
+      <div id="source-empty" class="empty-state">
+        <div class="icon">📎</div>
+        Paste a passage and we'll identify its likely origin.
+      </div>
+    </div>
+
+    
+    
+    <!-- KNOWLEDGE LIBRARY (NO AI) -->
+    <div class="tab-panel" id="tab-knowledge">
+
+      <div class="kb-ask-box">
+        <div class="kb-ask-title">🪶 Indigenous Library</div>
+        <div class="kb-ask-sub">Type a question or keyword below. Answers come directly from verified Indigenous-led sources — no AI involved.</div>
+        <div class="kb-ask-row">
+          <input class="kb-ask-input" id="kb-question-input" placeholder="e.g. What is the Indian Act? What does MMIWG mean?" autocomplete="off"/>
+          <button class="btn" id="kb-ask-btn">Ask</button>
+        </div>
+        <div id="kb-answer-area"></div>
+      </div>
+
+      <div class="kb-nav">
+        <button class="kb-nav-btn active" data-section="qa">❓ Q&amp;A</button>
+        <button class="kb-nav-btn" data-section="terms">🗣️ Terms</button>
+        <button class="kb-nav-btn" data-section="orgs">🏛️ Orgs</button>
+        <button class="kb-nav-btn" data-section="ack">🌍 Land</button>
+        <button class="kb-nav-btn" data-section="myths">⚠️ Myths</button>
+      </div>
+
+      <div id="kb-content"></div>
+
+      <div class="kb-submit-box">
+        <div class="section-label" style="margin-bottom:6px">✏️ Submit a Correction or Addition</div>
+        <p style="font-size:11px;color:var(--text-muted);margin-bottom:10px">Saved locally, flagged for community review. Nothing is sent anywhere.</p>
+        <input class="kb-field" id="kb-submit-type" placeholder="Type: question / myth / term / organisation / acknowledgement"/>
+        <textarea class="kb-field" id="kb-submit-content" style="min-height:60px;resize:vertical" placeholder="Describe the correction or new entry — include a source URL if possible…"></textarea>
+        <button class="btn" id="kb-submit-btn" style="width:100%">Submit for Review</button>
+        <p id="kb-submit-status" style="font-size:11px;text-align:center;margin-top:6px;color:var(--judge)"></p>
+        <div id="kb-pending-list"></div>
+      </div>
+
+    </div>
+
+    <!-- HISTORY -->
+    <div class="tab-panel" id="tab-history">
+      <div class="history-filters">
+        <span class="filter-chip active" data-filter="all">All</span>
+        <span class="filter-chip" data-filter="verify">Verify</span>
+        <span class="filter-chip" data-filter="source">Source</span>
+        
+      </div>
+      <div id="all-history">
+        <div class="empty-state"><div class="icon">🕐</div>No history yet</div>
+      </div>
+    </div>
+
+    <!-- APPEARANCE -->
+    <div class="tab-panel" id="tab-appearance">
+      <div class="appearance-section">
+        <div class="section-label">Theme</div>
+        <div class="theme-toggle">
+          <div class="theme-option active" data-theme-opt="light">
+            <div class="theme-icon">☀️</div>
+            <div class="theme-label">Light</div>
+          </div>
+          <div class="theme-option" data-theme-opt="dark">
+            <div class="theme-icon">🌙</div>
+            <div class="theme-label">Dark</div>
+          </div>
+        </div>
+      </div>
+      <div class="appearance-section">
+        <div class="section-label">Accent Colour</div>
+        <div class="colour-swatches">
+          <div class="swatch active" data-accent-opt="slate"  style="background:#1a1a18" title="Slate"></div>
+          <div class="swatch" data-accent-opt="indigo"  style="background:#4f46e5" title="Indigo"></div>
+          <div class="swatch" data-accent-opt="rose"    style="background:#e11d48" title="Rose"></div>
+          <div class="swatch" data-accent-opt="emerald" style="background:#059669" title="Emerald"></div>
+          <div class="swatch" data-accent-opt="amber"   style="background:#d97706" title="Amber"></div>
+        </div>
+      </div>
+      <div class="appearance-section">
+        <div class="section-label">Font Size</div>
+        <div class="font-size-options">
+          <div class="font-option" data-font-opt="sm" style="font-size:11px">Small</div>
+          <div class="font-option active" data-font-opt="md" style="font-size:13px">Medium</div>
+          <div class="font-option" data-font-opt="lg" style="font-size:15px">Large</div>
+        </div>
+      </div>
+      <div class="appearance-section">
+        <div class="section-label">Layout Density</div>
+        <div class="layout-options">
+          <div class="layout-option" data-layout-opt="compact"><div class="layout-icon">▤</div>Compact</div>
+          <div class="layout-option active" data-layout-opt="default"><div class="layout-icon">▦</div>Default</div>
+          <div class="layout-option" data-layout-opt="spacious"><div class="layout-icon">▣</div>Spacious</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETUP -->
+    <div class="tab-panel" id="tab-settings">
+      <div class="setup-box">
+        <h3>⚙️ Groq API Key Setup</h3>
+        <p>Groq is completely free — no credit card needed.</p>
+        <ol class="setup-steps">
+          <li>Go to <strong>console.groq.com</strong></li>
+          <li>Sign up with your email</li>
+          <li>Click <strong>API Keys → Create API Key</strong></li>
+          <li>Copy the key (starts with <strong>gsk_</strong>)</li>
+          <li>Paste it below and click Save</li>
+        </ol>
+        <input class="api-key-input" id="api-key-field" type="password" placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off"/>
+        <button class="btn" id="save-key-btn" style="width:100%">Save API Key</button>
+        <p id="key-status" style="font-size:11px;margin-top:8px;text-align:center;color:var(--judge)"></p>
+      </div>
+      <div style="font-size:calc(var(--font-size-base) - 2px);color:var(--text-muted);line-height:1.6">
+        <strong style="color:var(--text-secondary)">Your key stays on your device.</strong> Stored locally, only used to call Groq directly.
+      </div>
+    </div>
+
+  </div>
+  <script src="knowledge-base.js"></script>
+
+  <!-- Mascot -->
+  <canvas id="mascot-canvas" width="300" height="300"></canvas>
+
+  <script src="mascot.js"></script>
+  <script src="sounds.js"></script>
+  <script src="appearance.js"></script>
+  <script src="sidebar.js"></script>
+</body>
+</html>
